@@ -1,14 +1,11 @@
-from typing import Generic, TypeVar
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.database.base import BaseModel
 
-ModelT = TypeVar("ModelT", bound=BaseModel)
 
-
-class BaseRepository(Generic[ModelT]):
+class BaseRepository[ModelT: BaseModel]:
     model: type[ModelT]
 
     def __init__(self, db: Session) -> None:

@@ -1,4 +1,4 @@
-import enum
+from enum import StrEnum
 
 from sqlalchemy import Boolean, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database.base import BaseModel
 
 
-class UserRole(str, enum.Enum):
+class UserRole(StrEnum):
     ADMIN = "ADMIN"
     USER = "USER"
 
