@@ -33,7 +33,7 @@ class GUID(TypeDecorator[uuid.UUID]):
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base for ORM models."""
 
 
 class TimestampMixin:

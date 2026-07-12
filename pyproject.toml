@@ -1,7 +1,7 @@
 [project]
 name = "ticketflow-api"
 version = "0.1.0"
-description = "Reusable production-style FastAPI backend template."
+description = "Support ticket management backend built with FastAPI."
 readme = "README.md"
 requires-python = ">=3.12"
 

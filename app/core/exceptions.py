@@ -45,6 +45,36 @@ class BusinessRuleError(AppError):
     message = "Business rule violation"
 
 
+class TicketNotFoundError(ResourceNotFoundError):
+    code = "TICKET_NOT_FOUND"
+    message = "Ticket was not found"
+
+
+class TicketAccessDeniedError(AuthorizationError):
+    code = "TICKET_ACCESS_DENIED"
+    message = "You do not have access to this ticket"
+
+
+class InvalidStatusTransitionError(BusinessRuleError):
+    code = "INVALID_STATUS_TRANSITION"
+    message = "Invalid ticket status transition"
+
+
+class InvalidAssigneeError(BusinessRuleError):
+    code = "INVALID_ASSIGNEE"
+    message = "Tickets can only be assigned to active admins"
+
+
+class TicketClosedError(BusinessRuleError):
+    code = "TICKET_CLOSED"
+    message = "Closed tickets must be reopened before they can be changed"
+
+
+class InternalCommentForbiddenError(AuthorizationError):
+    code = "INTERNAL_COMMENT_FORBIDDEN"
+    message = "Only admins may create or view internal comments"
+
+
 def error_response(code: str, message: str, status_code: int) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,

@@ -1,248 +1,169 @@
 # TicketFlow API
 
-A reusable, production-style FastAPI backend foundation for portfolio and real-world API projects. It is designed to be copied, renamed, and extended into projects such as support ticket systems, uptime monitors, job application trackers, document managers, and inventory APIs.
-
-This template includes authentication, user management, migrations, tests, Docker support, CI, linting, formatting, type checking, and helper scripts. It is intentionally practical rather than enterprise-heavy, so a junior-to-mid-level developer can understand and adapt it.
+TicketFlow API is a production-style FastAPI backend for support ticket management. It turns a reusable backend template into a focused portfolio project with authentication, role-based authorization, PostgreSQL persistence, Alembic migrations, and a tested ticket workflow.
 
 ## Features
 
-- Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.x, Alembic
-- PostgreSQL for local and Docker development
-- Isolated SQLite test database for pytest and CI
-- JWT bearer authentication with password hashing
-- Registration, login, current-user, admin-only, and active-user dependencies
-- User CRUD-style management with soft deletion
-- Reusable repository and service layers
-- Consistent application error responses
-- Pagination helpers and paginated user listing
-- Structured standard-library logging
-- Swagger at `/docs` and ReDoc at `/redoc`
-- Dockerfile, Docker Compose, GitHub Actions, Ruff, mypy, pytest
-- Cross-platform project copy script
-
-This is a strong starter template, not a complete production security program. Before using it for real production traffic, add infrastructure hardening, secrets management, rate limiting, monitoring, backups, TLS, and a security review.
+- JWT authentication with active user checks
+- User and admin roles
+- Ticket creation, filtering, pagination, search, and statistics
+- Admin assignment to active admins only
+- Public and internal ticket comments
+- Ticket history audit trail for creation, updates, comments, assignment, priority, and status changes
+- Structured JSON error responses
+- Health endpoints for app and database checks
+- Docker Compose local stack
+- Ruff, mypy, pytest, Alembic, and GitHub Actions
 
 ## Architecture
 
-Routes handle HTTP input and output. Services own business rules. Repositories own database queries. Schemas validate request and response data. Models define database entities.
+TicketFlow keeps HTTP handlers thin and places domain behavior in services.
 
-```text
-ticketflow-api/
-├── app/
-│   ├── api/
-│   │   ├── dependencies/
-│   │   │   ├── auth.py
-│   │   │   └── database.py
-│   │   ├── routes/
-│   │   │   ├── auth.py
-│   │   │   ├── health.py
-│   │   │   └── users.py
-│   │   └── router.py
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── exceptions.py
-│   │   ├── logging.py
-│   │   └── security.py
-│   ├── database/
-│   │   ├── base.py
-│   │   ├── models.py
-│   │   └── session.py
-│   ├── models/
-│   │   ├── base.py
-│   │   └── user.py
-│   ├── repositories/
-│   │   ├── base.py
-│   │   └── user_repository.py
-│   ├── schemas/
-│   │   ├── auth.py
-│   │   ├── common.py
-│   │   └── user.py
-│   ├── services/
-│   │   ├── auth_service.py
-│   │   └── user_service.py
-│   ├── utils/
-│   │   └── pagination.py
-│   └── main.py
-├── alembic/
-├── scripts/
-├── tests/
-├── .github/workflows/ci.yml
-├── .env.example
-├── docker-compose.yml
-├── Dockerfile
-├── Makefile
-├── pyproject.toml
-└── requirements.txt
-```
+- `app/api/routes`: FastAPI routers and request dependency wiring
+- `app/api/dependencies`: auth and database dependencies
+- `app/models`: SQLAlchemy 2.x ORM models and enums
+- `app/schemas`: Pydantic v2 request and response schemas
+- `app/repositories`: database query, filtering, counting, and persistence helpers
+- `app/services`: authorization, workflow validation, timestamps, assignment rules, and history creation
+- `alembic/versions`: database migrations
+- `tests`: unit and integration coverage
 
-## Technology Stack
+## Stack
 
-- Python 3.12
+- Python 3.12+
 - FastAPI
 - PostgreSQL
 - SQLAlchemy 2.x
 - Alembic
-- Pydantic v2 and pydantic-settings
-- PyJWT
-- pwdlib with Argon2
-- Pytest and HTTPX
+- Pydantic v2
+- PyJWT and bcrypt password hashing
 - Docker and Docker Compose
-- GitHub Actions
-- Ruff and mypy
+- Ruff, mypy, pytest
 
-## Requirements
+## Entities
 
-- Python 3.12+
-- PostgreSQL 14+ for local database development
-- Docker Desktop if using Docker Compose
-- Git
+- `User`: authenticated account with `USER` or `ADMIN` role and active status
+- `Ticket`: support request with status, priority, category, creator, optional assignee, and lifecycle timestamps
+- `TicketComment`: public or admin-only internal discussion on a ticket
+- `TicketHistory`: immutable audit event for important ticket changes
 
-Make is optional. Windows PowerShell commands are documented below.
+## Ticket Lifecycle
 
-## Local Installation
+Admin transitions:
 
-PowerShell:
+- `OPEN -> IN_PROGRESS`
+- `OPEN -> RESOLVED`
+- `IN_PROGRESS -> WAITING_FOR_CUSTOMER`
+- `IN_PROGRESS -> RESOLVED`
+- `WAITING_FOR_CUSTOMER -> IN_PROGRESS`
+- `WAITING_FOR_CUSTOMER -> RESOLVED`
+- `RESOLVED -> OPEN`
+- `RESOLVED -> CLOSED`
+- `CLOSED -> OPEN`
+
+Normal users may only reopen their own resolved ticket:
+
+- `RESOLVED -> OPEN`
+
+Timestamp behavior:
+
+- Moving to `RESOLVED` sets `resolved_at`
+- Reopening from `RESOLVED` clears `resolved_at`
+- Moving to `CLOSED` sets `closed_at`
+- Reopening from `CLOSED` clears `closed_at`
+
+## Authorization Rules
+
+Normal users can:
+
+- Create tickets
+- List and view only their own tickets
+- Update title and description only while a ticket is `OPEN`
+- Add public comments to their own tickets
+- Reopen their own `RESOLVED` ticket to `OPEN`
+
+Normal users cannot assign tickets, change priority/category, view history, view internal comments, close tickets, or access another user's ticket.
+
+Admins can:
+
+- List and view all tickets
+- Update ticket details, priority, category, and status
+- Assign tickets to active admins
+- Add public or internal comments
+- View ticket history
+- Resolve, close, and reopen tickets
+
+## Local Setup With PowerShell
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-macOS/Linux:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-## Environment Configuration
-
-Edit `.env` after copying `.env.example`.
-
-```env
-APP_NAME=TicketFlow API
-APP_ENV=development
-DEBUG=true
-API_V1_PREFIX=/api/v1
-
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/ticketflow_api_db
-
-JWT_SECRET_KEY=change-this-secret
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-```
-
-Use a long random `JWT_SECRET_KEY` outside local development. Do not commit `.env`.
-
-## Database Setup
-
-Create a PostgreSQL database named `ticketflow_api_db`, or adjust `DATABASE_URL` to match your local database.
-
-PowerShell example with Docker only for PostgreSQL:
+Edit `.env` for your local database and JWT secret, then run migrations:
 
 ```powershell
-docker run --name fastapi-template-postgres `
-  -e POSTGRES_USER=postgres `
-  -e POSTGRES_PASSWORD=postgres `
-  -e POSTGRES_DB=ticketflow_api_db `
-  -p 5432:5432 `
-  -d postgres:16-alpine
-```
-
-## Running Migrations
-
-```powershell
-alembic upgrade head
-```
-
-Create a new migration:
-
-```powershell
-alembic revision --autogenerate -m "add tickets table"
-```
-
-Downgrade one migration:
-
-```powershell
-alembic downgrade -1
-```
-
-## Running the API
-
-PowerShell:
-
-```powershell
-uvicorn app.main:app --reload
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload
 ```
 
 Open:
 
-- API root health: `http://localhost:8000/health`
-- Swagger: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- API docs: `http://127.0.0.1:8000/docs`
+- Health: `http://127.0.0.1:8000/health`
+- Database health: `http://127.0.0.1:8000/api/v1/health/database`
 
 ## Docker Usage
-
-Build and run the API with PostgreSQL:
 
 ```powershell
 docker compose up --build
 ```
 
-Stop services:
+Validate the compose file:
 
 ```powershell
-docker compose down
+docker compose config
 ```
 
-Run migrations inside the API container:
+## Migrations
+
+Create a migration after model changes:
 
 ```powershell
-docker compose exec api alembic upgrade head
+python -m alembic revision --autogenerate -m "describe change"
 ```
 
-The API is available at `http://localhost:8000`, and Swagger is available at `http://localhost:8000/docs`.
-
-## Running Tests
-
-Tests use SQLite and do not touch the development PostgreSQL database.
+Apply migrations:
 
 ```powershell
-pytest
+python -m alembic upgrade head
 ```
 
-## Linting and Formatting
+Inspect migration state:
 
 ```powershell
-ruff check .
-ruff format .
-mypy app
+python -m alembic heads
+python -m alembic history
 ```
 
-Optional Make targets:
+## Tests And Quality
 
 ```powershell
-make test
-make lint
-make format
-make typecheck
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy app
+python -m pytest
+python -m alembic heads
+python -m alembic history
+docker compose config
 ```
 
-## API Endpoints
+## API Endpoint Summary
 
-Health:
-
-- `GET /health`
-- `GET /api/v1/health`
-- `GET /api/v1/health/database`
-
-Auth:
+Authentication:
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
@@ -255,101 +176,202 @@ Users:
 - `PATCH /api/v1/users/{user_id}`
 - `DELETE /api/v1/users/{user_id}`
 
-## Authentication Example
+Tickets:
+
+- `POST /api/v1/tickets`
+- `GET /api/v1/tickets`
+- `GET /api/v1/tickets/statistics`
+- `GET /api/v1/tickets/{ticket_id}`
+- `PATCH /api/v1/tickets/{ticket_id}`
+- `PATCH /api/v1/tickets/{ticket_id}/status`
+- `PATCH /api/v1/tickets/{ticket_id}/priority`
+- `PATCH /api/v1/tickets/{ticket_id}/category`
+- `PATCH /api/v1/tickets/{ticket_id}/assignee`
+- `POST /api/v1/tickets/{ticket_id}/comments`
+- `GET /api/v1/tickets/{ticket_id}/comments`
+- `GET /api/v1/tickets/{ticket_id}/history`
+
+Health:
+
+- `GET /health`
+- `GET /api/v1/health/database`
+
+## Filtering Examples
+
+List high-priority technical tickets:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://127.0.0.1:8000/api/v1/tickets?priority=HIGH&category=TECHNICAL" `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+Search title and description, newest first:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://127.0.0.1:8000/api/v1/tickets?q=billing&sort_by=created_at&sort_dir=desc" `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+Supported ticket list filters:
+
+- `status`
+- `priority`
+- `category`
+- `assigned_to_id`
+- `created_by_id`
+- `is_assigned`
+- `created_from`
+- `created_to`
+- `q`
+- `sort_by`: `created_at`, `updated_at`, `priority`, `status`
+- `sort_dir`: `asc`, `desc`
+
+Normal users are always scoped to their own tickets, even when they pass broader filters.
+
+## Auth Examples
 
 Register:
 
 ```powershell
-curl.exe -X POST "http://localhost:8000/api/v1/auth/register" `
-  -H "Content-Type: application/json" `
-  -d "{\"email\":\"user@example.com\",\"password\":\"StrongPassword123\",\"full_name\":\"Example User\"}"
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://127.0.0.1:8000/api/v1/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"email":"customer@example.com","password":"StrongPassword123","full_name":"Customer User"}'
 ```
 
-Log in:
+Log in and store the bearer token:
 
 ```powershell
-curl.exe -X POST "http://localhost:8000/api/v1/auth/login" `
-  -H "Content-Type: application/json" `
-  -d "{\"email\":\"user@example.com\",\"password\":\"StrongPassword123\"}"
+$login = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://127.0.0.1:8000/api/v1/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email":"admin@example.com","password":"StrongPassword123"}'
+
+$token = $login.access_token
 ```
 
-Use the token:
+Create a ticket:
 
 ```powershell
-$token = "paste-access-token-here"
-curl.exe "http://localhost:8000/api/v1/auth/me" `
-  -H "Authorization: Bearer $token"
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://127.0.0.1:8000/api/v1/tickets" `
+  -Headers @{ Authorization = "Bearer $token" } `
+  -ContentType "application/json" `
+  -Body '{"title":"Cannot export invoice","description":"The invoice export returns a blank PDF.","priority":"HIGH","category":"BILLING"}'
 ```
 
-## Creating an Admin
+## Seed And Demo Credentials
 
-After migrations have run:
+Seed demo data:
 
 ```powershell
-python scripts/create_admin.py --email admin@example.com --password StrongPassword123 --name "Admin User"
+python -m scripts.seed
 ```
 
-Seed development users:
+Demo credentials:
 
-```powershell
-python scripts/seed.py
-```
+- Admin: `admin@example.com` / `StrongPassword123`
+- User: `user@example.com` / `StrongPassword123`
+- User: `jane@example.com` / `StrongPassword123`
 
-Seed data creates:
+The seed creates assigned and unassigned tickets, public comments, internal comments, and history entries.
 
-- `admin@example.com` with password `StrongPassword123`
-- `user@example.com` with password `StrongPassword123`
+## CI
 
-Do not run seed scripts automatically in production.
+GitHub Actions is configured to run project quality checks for pull requests and pushes. The intended verification set is:
 
-## Creating a New Project From the Template
+- Ruff lint
+- Ruff format check
+- mypy
+- pytest
+- Alembic metadata/history checks
 
-PowerShell:
+## Security Notes
 
-```powershell
-python scripts/create_project.py `
-  --name "TicketFlow API" `
-  --slug "ticketflow-api" `
-  --destination "../ticketflow-api"
-```
-
-The script copies the template, excludes local caches and `.env`, replaces template names, generates the copied `.env.example`, and refuses to overwrite a non-empty destination unless `--force` is provided.
-
-## GitHub Actions
-
-CI runs on pushes to `main` and pull requests targeting `main`.
-
-It performs:
-
-1. Dependency installation
-2. `ruff check .`
-3. `ruff format --check .`
-4. `mypy app`
-5. `pytest`
-
-The workflow uses SQLite for tests, so it does not require an external PostgreSQL service.
-
-## Extending the Template
-
-To add a new domain, such as tickets:
-
-1. Add a SQLAlchemy model in `app/models/`.
-2. Import it in `app/database/models.py`.
-3. Add Pydantic schemas in `app/schemas/`.
-4. Add a repository in `app/repositories/`.
-5. Add business rules in `app/services/`.
-6. Add routes in `app/api/routes/`.
-7. Include the router in `app/api/router.py`.
-8. Create and apply an Alembic migration.
-9. Add unit and integration tests.
+- Passwords are hashed before storage.
+- JWTs use a configurable secret from environment variables.
+- Inactive users cannot authenticate.
+- Normal users are always scoped to their own tickets at the service layer.
+- Internal comments and ticket history are admin-only.
+- Closed tickets are immutable except for explicit reopen transitions.
+- Do not commit production secrets in `.env`.
 
 ## Future Improvements
 
-- Refresh tokens and token revocation
-- Rate limiting
-- Request ID middleware
-- Production metrics and tracing
-- Role and permission tables for larger products
-- Background task integration in project-specific forks
-- Deployment examples for common cloud platforms
-- Password reset and email verification flows
+- SLA timers and breach reporting
+- Email or webhook notifications
+- Attachment storage for ticket evidence
+- Saved views for support teams
+- Full-text PostgreSQL search
+- WebSocket updates for live ticket activity
+
+## ER Diagram
+
+```mermaid
+erDiagram
+    USERS ||--o{ TICKETS : creates
+    USERS ||--o{ TICKETS : assigned
+    USERS ||--o{ TICKET_COMMENTS : writes
+    USERS ||--o{ TICKET_HISTORY : changes
+    TICKETS ||--o{ TICKET_COMMENTS : has
+    TICKETS ||--o{ TICKET_HISTORY : records
+
+    USERS {
+        uuid id
+        string email
+        string full_name
+        string role
+        boolean is_active
+    }
+
+    TICKETS {
+        uuid id
+        string title
+        text description
+        string status
+        string priority
+        string category
+        uuid created_by_id
+        uuid assigned_to_id
+        datetime resolved_at
+        datetime closed_at
+    }
+
+    TICKET_COMMENTS {
+        uuid id
+        uuid ticket_id
+        uuid author_id
+        text content
+        boolean is_internal
+    }
+
+    TICKET_HISTORY {
+        uuid id
+        uuid ticket_id
+        uuid changed_by_id
+        string event_type
+        text old_value
+        text new_value
+    }
+```
+
+## Request Flow
+
+```mermaid
+flowchart TD
+    Client["Client"] --> Route["FastAPI route"]
+    Route --> Auth["Auth dependency"]
+    Auth --> Service["TicketService"]
+    Service --> Rules["Authorization and workflow rules"]
+    Rules --> Repo["TicketRepository"]
+    Repo --> DB[("PostgreSQL")]
+    Service --> History["TicketHistory event"]
+    History --> Repo
+    Service --> Response["Pydantic response"]
+    Response --> Client
+```
