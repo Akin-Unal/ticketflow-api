@@ -2,6 +2,20 @@
 
 TicketFlow API is a production-style FastAPI backend for support ticket management. It turns a reusable backend template into a focused portfolio project with authentication, role-based authorization, PostgreSQL persistence, Alembic migrations, and a tested ticket workflow.
 
+## Screenshots
+
+### Swagger API Documentation
+
+![Swagger Overview](docs/images/swagger-overview.png)
+
+### Ticket Management Endpoints
+
+![Ticket Endpoints](docs/images/ticket-endpoints.png)
+
+### Automated Test Results
+
+![Test Results](docs/images/test-results.png)
+
 ## Features
 
 - JWT authentication with active user checks
